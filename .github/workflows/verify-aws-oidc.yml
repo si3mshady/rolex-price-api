@@ -1,0 +1,39 @@
+name: Verify AWS OIDC Authentication
+
+# Workflow triggers:
+# - Manual trigger via the GitHub Actions UI (workflow_dispatch)
+# - Pushes to feature branches matching feature/*
+# - Pushes to the develop branch
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/*'
+      - 'develop'
+
+# Request minimum required permissions for OIDC authentication and repo read access
+permissions:
+  id-token: write  # Grants permission to request the OpenID Connect (OIDC) JWT token from GitHub
+  contents: read   # Grants permission to checkout and read repository contents
+
+jobs:
+  verify-oidc:
+    name: Verify AWS OIDC Connection
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Authenticate to AWS using GitHub OIDC and assume the designated IAM role
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: us-east-1
+
+      # Step 3: Execute AWS STS command to retrieve and print current caller identity
+      - name: Print AWS Caller Identity
+        run: |
+          aws sts get-caller-identity

@@ -32,6 +32,8 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
           aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true # Skips session tagging so authentication succeeds without sts:TagSession in trust policy
 
       # Step 3: Execute AWS STS command to retrieve and print current caller identity
       - name: Print AWS Caller Identity

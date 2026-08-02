@@ -1,0 +1,91 @@
+# ==============================================================================
+# Workflow Name: Terraform Bootstrap Validation and Plan
+# ==============================================================================
+#
+# 1. WORKFLOW PURPOSE:
+#    Validates, lint-checks, and generates a dry-run execution plan for the
+#    foundational Terraform remote state infrastructure located at `terraform/bootstrap`.
+#    Verifies S3 bucket and DynamoDB lock table configurations without creating or
+#    modifying AWS resources (terraform apply is strictly omitted).
+#
+# 2. SECURITY CONTROLS:
+#    - Keyless OIDC Authentication: Uses OpenID Connect to exchange GitHub JWT tokens
+#      for short-lived AWS IAM session credentials (no static secrets stored in GitHub).
+#    - Least-Privilege Permissions: Workflow permissions are explicitly restricted to
+#      `id-token: write` and `contents: read`. All other default permissions are revoked.
+#    - Controlled Execution Trigger: Restricted strictly to `workflow_dispatch` (manual UI trigger).
+#    - Read-Only Operations: Executes non-mutating validation and planning steps (`fmt -check`,
+#      `validate`, `plan`). No resources are created or modified.
+#
+# 3. EXPECTED EXECUTION FLOW:
+#    [Manual UI Trigger] -> [Checkout Code] -> [Setup Terraform v1.5.7] ->
+#    [OIDC AWS Auth (us-east-1)] -> [Verify STS Caller Identity] ->
+#    [Terraform Init (terraform/bootstrap)] -> [Terraform Format Check] ->
+#    [Terraform Validate] -> [Terraform Plan (Read-Only Dry Run)]
+# ==============================================================================
+
+name: Terraform Bootstrap Validation and Plan
+
+# Trigger configuration:
+# - Manual trigger via the GitHub Actions UI only (workflow_dispatch)
+on:
+  workflow_dispatch:
+
+# Minimum permissions required for OIDC authentication and repo read access
+permissions:
+  id-token: write  # Grants permission to request the OpenID Connect (OIDC) JWT token from GitHub
+  contents: read   # Grants permission to checkout and read repository contents
+
+jobs:
+  bootstrap-plan:
+    name: Terraform Bootstrap Plan
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Terraform CLI environment
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      # Step 3: Authenticate to AWS using GitHub OIDC and assume the designated IAM role
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true # Skips session tagging to match AssumeRoleWithWebIdentity policy
+
+      # Step 4: Verify authentication by printing current AWS caller identity
+      - name: Verify AWS Caller Identity
+        run: |
+          aws sts get-caller-identity
+
+      # Step 5: Initialize Terraform working directory in terraform/bootstrap
+      - name: Terraform Init
+        working-directory: terraform/bootstrap
+        run: |
+          terraform init
+
+      # Step 6: Check formatting compliance for bootstrap Terraform code
+      - name: Terraform Format Check
+        working-directory: terraform/bootstrap
+        run: |
+          terraform fmt -check
+
+      # Step 7: Validate Terraform syntax and schema configuration
+      - name: Terraform Validate
+        working-directory: terraform/bootstrap
+        run: |
+          terraform validate
+
+      # Step 8: Generate and display Terraform execution plan (Read-Only)
+      - name: Terraform Plan
+        working-directory: terraform/bootstrap
+        run: |
+          terraform plan

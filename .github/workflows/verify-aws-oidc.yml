@@ -26,14 +26,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 1b: Debug step to print decoded GitHub OIDC claims
-      - name: Inspect GitHub OIDC Token Claims
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo "=== DECODED GITHUB OIDC TOKEN PAYLOAD ==="
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '{iss, sub, aud, repository_owner, repository, job_workflow_ref}' || true
-          echo "=========================================="
-
       # Step 2: Authenticate to AWS using GitHub OIDC and assume the designated IAM role
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4

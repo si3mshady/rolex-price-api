@@ -27,9 +27,15 @@
 name: Terraform Bootstrap Validation and Plan
 
 # Trigger configuration:
-# - Manual trigger via the GitHub Actions UI only (workflow_dispatch)
+# - Manual trigger via the GitHub Actions UI (workflow_dispatch)
+# - Pushes to feature branches matching feature/*
+# - Pushes to the develop branch
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'feature/*'
+      - 'develop'
 
 # Minimum permissions required for OIDC authentication and repo read access
 permissions:

@@ -26,7 +26,11 @@ WORKDIR /app
 # Set runtime environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PORT=8000 \
     PATH="/opt/venv/bin:$PATH"
+
+# Copy AWS Lambda Web Adapter extension for AWS Lambda container compatibility
+COPY --from=public.ecr.aws/lambda/aws-lambda-adapter:0.9.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 # Create non-root user for security best practices in container environments
 RUN groupadd -g 10001 appgroup && \

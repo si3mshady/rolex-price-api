@@ -36,23 +36,52 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - name: Print Terraform Version
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM VERSION ==="
+          terraform version
+
       - name: Terraform Init
-        run: terraform init -backend-config=backend.tfvars
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM INIT ==="
+          terraform init -backend-config=backend.tfvars
 
       - name: Terraform Format Check
-        run: terraform fmt -check
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM FORMAT CHECK ==="
+          terraform fmt -check
 
       - name: Terraform Validate
-        run: terraform validate
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM VALIDATE ==="
+          terraform validate
 
       - name: Terraform Plan
-        run: terraform plan
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM PLAN ==="
+          terraform plan -no-color
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM APPLY ==="
+          terraform apply -auto-approve -no-color
+
+      - name: Print Terraform Outputs
+        run: |
+          set -euxo pipefail
+          echo "=== TERRAFORM OUTPUTS ==="
+          terraform output
 
       - name: Run Cloud Smoke Tests
         run: |
+          set -euxo pipefail
+          echo "=== STARTING CLOUD SMOKE TESTS ==="
           API_ENDPOINT=$(terraform output -raw api_gateway_endpoint)
           echo "Target API Gateway Endpoint: $API_ENDPOINT"
 
@@ -62,15 +91,15 @@ jobs:
           test_endpoint() {
             ENDPOINT="$1"
             URL="${API_ENDPOINT}${ENDPOINT}"
-            echo -n "Testing GET ${URL} ... "
+            echo "Testing GET ${URL} ... "
             HTTP_CODE=$(curl -s -o /tmp/cloud_resp.json -w "%{http_code}" "$URL")
             if [ "$HTTP_CODE" -eq 200 ]; then
               echo "SUCCESS (HTTP 200)"
-              head -n 5 /tmp/cloud_resp.json || true
+              head -n 5 /tmp/cloud_resp.json
               echo ""
             else
               echo "FAILED (HTTP $HTTP_CODE)"
-              cat /tmp/cloud_resp.json || true
+              cat /tmp/cloud_resp.json
               echo ""
               exit 1
             fi
@@ -82,3 +111,20 @@ jobs:
           test_endpoint "/statistics"
 
           echo "All cloud smoke tests passed successfully (HTTP 200)."
+
+      - name: Diagnostic Information on Failure
+        if: failure()
+        run: |
+          set -x
+          echo "=========================================="
+          echo "DIAGNOSTIC DUMP (WORKFLOW FAILURE DETECTED)"
+          echo "=========================================="
+          echo "=== TERRAFORM VERSION ==="
+          terraform version || true
+          echo "=== TERRAFORM STATE LIST ==="
+          terraform state list || true
+          echo "=== TERRAFORM OUTPUTS ==="
+          terraform output || true
+          echo "=== AWS CALLER IDENTITY ==="
+          aws sts get-caller-identity || true
+          echo "=========================================="

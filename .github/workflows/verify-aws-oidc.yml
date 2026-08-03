@@ -1,0 +1,49 @@
+name: Verify AWS OIDC Authentication
+
+# Workflow triggers:
+# - Manual trigger via the GitHub Actions UI (workflow_dispatch)
+# - Pushes to feature branches matching feature/*
+# - Pushes to the develop branch
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feature/*'
+      - 'develop'
+
+# Request minimum required permissions for OIDC authentication and repo read access
+permissions:
+  id-token: write  # Grants permission to request the OpenID Connect (OIDC) JWT token from GitHub
+  contents: read   # Grants permission to checkout and read repository contents
+
+jobs:
+  verify-oidc:
+    name: Verify AWS OIDC Connection
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 1b: Debug step to print decoded GitHub OIDC claims
+      - name: Inspect GitHub OIDC Token Claims
+        run: |
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          echo "=== DECODED GITHUB OIDC TOKEN PAYLOAD ==="
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '{iss, sub, aud, repository_owner, repository, job_workflow_ref}' || true
+          echo "=========================================="
+
+      # Step 2: Authenticate to AWS using GitHub OIDC and assume the designated IAM role
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true # Skips session tagging so authentication succeeds without sts:TagSession in trust policy
+
+      # Step 3: Execute AWS STS command to retrieve and print current caller identity
+      - name: Print AWS Caller Identity
+        run: |
+          aws sts get-caller-identity

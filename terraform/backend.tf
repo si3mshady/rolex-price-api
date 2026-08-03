@@ -15,12 +15,12 @@
 # ==============================================================================
 
 terraform {
-  # Placeholder Remote S3 Backend Configuration
-  # backend "s3" {
-  #   bucket         = "rolex-price-api-tf-state-<account-id>-<region>"
-  #   key            = "serverless-saas/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "rolex-price-api-tf-locks"
-  #   encrypt        = true
-  # }
+  # Remote S3 Backend Configuration
+  backend "s3" {
+    bucket         = "rolex-price-api-tf-state-dev"
+    key            = "dev/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "rolex-price-api-tf-locks-dev"
+    encrypt        = true
+  }
 }

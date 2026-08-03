@@ -1,0 +1,42 @@
+name: Terraform Bootstrap Apply
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bootstrap-apply:
+    name: Terraform Bootstrap Apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true
+
+      - name: Terraform Init
+        working-directory: terraform/bootstrap
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform/bootstrap
+        run: terraform validate
+
+      - name: Terraform Apply
+        working-directory: terraform/bootstrap
+        run: terraform apply -auto-approve

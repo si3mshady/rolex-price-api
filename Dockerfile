@@ -38,7 +38,6 @@ COPY --from=builder /opt/venv /opt/venv
 # Copy application source code and data assets
 COPY --chown=appuser:appgroup app ./app
 COPY --chown=appuser:appgroup data ./data
-COPY --chown=appuser:appgroup Rolex_retail_original.json ./Rolex_retail_original.json
 COPY --chown=appuser:appgroup main.py ./main.py
 
 # Switch to unprivileged user

@@ -51,6 +51,7 @@ module "cloudwatch" {
 
 # 4. Lambda Function (FastAPI Container Application)
 module "lambda" {
+  count  = var.enable_app_services ? 1 : 0
   source = "../../modules/lambda"
 
   function_name = "${local.name_prefix}-app"
@@ -78,11 +79,13 @@ module "lambda" {
 
 # 5. API Gateway HTTP API
 module "api_gateway" {
+  count  = var.enable_app_services ? 1 : 0
   source = "../../modules/api_gateway"
 
   api_name             = "${local.name_prefix}-http-api"
-  lambda_function_name = module.lambda.function_name
-  lambda_invoke_arn    = module.lambda.invoke_arn
+  lambda_function_name = module.lambda[0].function_name
+  lambda_invoke_arn    = module.lambda[0].invoke_arn
   environment          = var.environment
   tags                 = local.common_tags
 }
+

@@ -1,17 +1,18 @@
 output "api_gateway_endpoint" {
   description = "Public URL of the API Gateway HTTP API exposing the FastAPI application"
-  value       = module.api_gateway.api_endpoint
+  value       = var.enable_app_services ? module.api_gateway[0].api_endpoint : ""
 }
 
 output "lambda_function_name" {
   description = "Name of the deployed Lambda function"
-  value       = module.lambda.function_name
+  value       = var.enable_app_services ? module.lambda[0].function_name : ""
 }
 
 output "lambda_function_arn" {
   description = "ARN of the deployed Lambda function"
-  value       = module.lambda.function_arn
+  value       = var.enable_app_services ? module.lambda[0].function_arn : ""
 }
+
 
 output "iam_role_arn" {
   description = "ARN of the Lambda IAM execution role"

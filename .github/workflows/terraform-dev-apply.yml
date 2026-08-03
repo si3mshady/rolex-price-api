@@ -14,9 +14,14 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: rolex-price-api-dev
+  IMAGE_TAG: latest
+
 jobs:
   terraform-dev-apply:
-    name: Terraform Dev Apply & Cloud Smoke Tests
+    name: Terraform Dev Apply & Deployment Pipeline
     runs-on: ubuntu-latest
 
     defaults:
@@ -31,7 +36,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
           audience: sts.amazonaws.com
           role-skip-session-tagging: true
 
@@ -64,10 +69,11 @@ jobs:
           echo "=== TERRAFORM VALIDATE ==="
           terraform validate
 
-      - name: Terraform Plan
+      # Step 2: Terraform Stage 1 Apply (Base Infrastructure: ECR, IAM, S3, CloudWatch)
+      - name: Terraform Apply (Stage 1 - Base Infrastructure)
         run: |
           set -euo pipefail
-          echo "=== TERRAFORM PLAN ==="
+          echo "=== TERRAFORM APPLY STAGE 1 (ECR, IAM, S3, CloudWatch) ==="
 
           LOCK_TABLE="rolex-price-api-tf-locks-dev"
           REGION="us-east-1"
@@ -75,12 +81,12 @@ jobs:
           ATTEMPT=1
 
           until [ $ATTEMPT -gt $MAX_RETRIES ]; do
-            echo "Executing terraform plan (Attempt $ATTEMPT/$MAX_RETRIES)..."
-            if terraform plan -no-color; then
-              echo "Terraform plan succeeded."
+            echo "Executing stage 1 apply (Attempt $ATTEMPT/$MAX_RETRIES)..."
+            if terraform apply -var="enable_app_services=false" -auto-approve -no-color; then
+              echo "Stage 1 apply succeeded."
               break
             else
-              echo "Terraform plan failed on attempt $ATTEMPT."
+              echo "Stage 1 apply failed on attempt $ATTEMPT."
               STALE_LOCK_ID=$(aws dynamodb scan --table-name "$LOCK_TABLE" --region "$REGION" --query "Items[0].LockID.S" --output text 2>/dev/null || true)
               if [ -n "$STALE_LOCK_ID" ] && [ "$STALE_LOCK_ID" != "None" ] && [ "$STALE_LOCK_ID" != "null" ]; then
                 echo "Found active state lock ID in DynamoDB: $STALE_LOCK_ID. Attempting force-unlock..."
@@ -88,7 +94,7 @@ jobs:
               fi
 
               if [ $ATTEMPT -eq $MAX_RETRIES ]; then
-                echo "ERROR: Terraform plan failed after $MAX_RETRIES attempts."
+                echo "ERROR: Stage 1 apply failed after $MAX_RETRIES attempts."
                 exit 1
               fi
               echo "Waiting 10 seconds before retrying..."
@@ -97,10 +103,80 @@ jobs:
             fi
           done
 
-      - name: Terraform Apply
+      # Step 3 & 4: Log in to ECR, Build Docker image & Push to ECR (:latest)
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker Image
         run: |
           set -euo pipefail
-          echo "=== TERRAFORM APPLY ==="
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          IMAGE_URI="$REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "Building Docker image: $IMAGE_URI"
+          docker build -t "$IMAGE_URI" -f ../../../Dockerfile ../../../
+
+      - name: Push Docker Image to ECR
+        run: |
+          set -euo pipefail
+          echo "Pushing Docker image to ECR..."
+          docker push "${{ env.IMAGE_URI }}"
+
+      # Step 5: Run Local Container Smoke Tests
+      - name: Run Local Container Smoke Tests
+        run: |
+          set -euo pipefail
+          echo "Starting Docker container locally for health & endpoint verification..."
+          docker run -d --name rolex-api-test -p 8000:8000 "${{ env.IMAGE_URI }}"
+
+          echo "Waiting for container application startup..."
+          MAX_RETRIES=15
+          COUNT=0
+          until curl -s -f http://localhost:8000/health > /dev/null || [ $COUNT -eq $MAX_RETRIES ]; do
+            echo "Waiting for service to respond on port 8000... ($COUNT/$MAX_RETRIES)"
+            sleep 2
+            COUNT=$((COUNT + 1))
+          done
+
+          if [ $COUNT -eq $MAX_RETRIES ]; then
+            echo "ERROR: Container failed to start or respond to /health in time."
+            docker logs rolex-api-test
+            docker stop rolex-api-test && docker rm rolex-api-test
+            exit 1
+          fi
+
+          echo "Executing local endpoint validation tests..."
+          FAILED=0
+          test_local() {
+            ENDPOINT="$1"
+            HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" "http://localhost:8000${ENDPOINT}")
+            echo -n "Testing local GET ${ENDPOINT} ... "
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "SUCCESS (HTTP 200)"
+            else
+              echo "FAILED (Got HTTP $HTTP_CODE)"
+              FAILED=$((FAILED + 1))
+            fi
+          }
+
+          test_local "/health"
+          test_local "/watches"
+          test_local "/collections"
+          test_local "/statistics"
+
+          docker stop rolex-api-test && docker rm rolex-api-test
+
+          if [ $FAILED -ne 0 ]; then
+            echo "ERROR: $FAILED local endpoint test(s) failed."
+            exit 1
+          fi
+
+      # Step 6: Terraform Stage 2 Apply (Create/Update Lambda & API Gateway using existing image)
+      - name: Terraform Apply (Stage 2 - Lambda & API Gateway)
+        run: |
+          set -euo pipefail
+          echo "=== TERRAFORM APPLY STAGE 2 (Lambda & API Gateway) ==="
 
           LOCK_TABLE="rolex-price-api-tf-locks-dev"
           REGION="us-east-1"
@@ -108,12 +184,12 @@ jobs:
           ATTEMPT=1
 
           until [ $ATTEMPT -gt $MAX_RETRIES ]; do
-            echo "Executing terraform apply (Attempt $ATTEMPT/$MAX_RETRIES)..."
-            if terraform apply -auto-approve -no-color; then
-              echo "Terraform apply succeeded."
+            echo "Executing stage 2 apply (Attempt $ATTEMPT/$MAX_RETRIES)..."
+            if terraform apply -var="enable_app_services=true" -auto-approve -no-color; then
+              echo "Stage 2 apply succeeded."
               break
             else
-              echo "Terraform apply failed on attempt $ATTEMPT."
+              echo "Stage 2 apply failed on attempt $ATTEMPT."
               STALE_LOCK_ID=$(aws dynamodb scan --table-name "$LOCK_TABLE" --region "$REGION" --query "Items[0].LockID.S" --output text 2>/dev/null || true)
               if [ -n "$STALE_LOCK_ID" ] && [ "$STALE_LOCK_ID" != "None" ] && [ "$STALE_LOCK_ID" != "null" ]; then
                 echo "Found active state lock ID in DynamoDB: $STALE_LOCK_ID. Attempting force-unlock..."
@@ -121,7 +197,7 @@ jobs:
               fi
 
               if [ $ATTEMPT -eq $MAX_RETRIES ]; then
-                echo "ERROR: Terraform apply failed after $MAX_RETRIES attempts."
+                echo "ERROR: Stage 2 apply failed after $MAX_RETRIES attempts."
                 exit 1
               fi
               echo "Waiting 10 seconds before retrying..."
@@ -136,6 +212,7 @@ jobs:
           echo "=== TERRAFORM OUTPUTS ==="
           terraform output
 
+      # Step 7: Run Cloud Smoke Tests against API Gateway
       - name: Run Cloud Smoke Tests
         run: |
           set -euxo pipefail

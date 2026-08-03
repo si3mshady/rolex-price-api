@@ -27,3 +27,10 @@ variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   default     = 14
 }
+
+variable "enable_app_services" {
+  type        = bool
+  description = "Whether to create Lambda function and API Gateway resources (requires ECR image to exist)"
+  default     = true
+}
+

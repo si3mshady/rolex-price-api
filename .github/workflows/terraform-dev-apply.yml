@@ -162,23 +162,23 @@ jobs:
             fi
 
             VALID=$(python3 -c "
-import sys, json
-try:
-    data = json.load(open('/tmp/resp.json'))
-    check = '${CHECK_TYPE}'
-    if check == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0:
-        print('OK')
-    elif check == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0:
-        print('OK')
-    elif check == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0:
-        print('OK')
-    elif check == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data:
-        print('OK')
-    else:
-        print('INVALID')
-except Exception as e:
-    print('ERROR:', e)
-")
+            import sys, json
+            try:
+                data = json.load(open('/tmp/resp.json'))
+                check = '${CHECK_TYPE}'
+                if check == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0:
+                    print('OK')
+                elif check == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0:
+                    print('OK')
+                elif check == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0:
+                    print('OK')
+                elif check == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data:
+                    print('OK')
+                else:
+                    print('INVALID')
+            except Exception as e:
+                print('ERROR:', e)
+            ")
             if [ "$VALID" = "OK" ]; then
               echo "SUCCESS (HTTP 200, valid response body)"
             else
@@ -260,13 +260,13 @@ except Exception as e:
           echo ""
 
           python3 -c "
-import json
-data = json.load(open('/tmp/lambda_resp.json'))
-assert data.get('statusCode') == 200, f'Expected statusCode 200, got {data.get(\"statusCode\")}'
-body = json.loads(data.get('body', '{}')) if isinstance(data.get('body'), str) else data.get('body', {})
-assert body.get('status') == 'healthy', f'Expected status healthy, got {body.get(\"status\")}'
-print('Direct Lambda invocation validation passed successfully.')
-"
+          import json
+          data = json.load(open('/tmp/lambda_resp.json'))
+          assert data.get('statusCode') == 200, f'Expected statusCode 200, got {data.get(\"statusCode\")}'
+          body = json.loads(data.get('body', '{}')) if isinstance(data.get('body'), str) else data.get('body', {})
+          assert body.get('status') == 'healthy', f'Expected status healthy, got {body.get(\"status\")}'
+          print('Direct Lambda invocation validation passed successfully.')
+          "
 
       # Step 7: Run Cloud Smoke Tests against API Gateway
       - name: Run Cloud Smoke Tests
@@ -292,23 +292,48 @@ print('Direct Lambda invocation validation passed successfully.')
               HTTP_CODE=$(curl -s -o /tmp/cloud_resp.json -w "%{http_code}" "$URL" || echo "000")
               if [ "$HTTP_CODE" -eq 200 ]; then
                 VALID=$(python3 -c "
-import sys, json
-try:
-    data = json.load(open('/tmp/cloud_resp.json'))
-    check = '${CHECK_TYPE}'
-    if check == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0:
-        print('OK')
-    elif check == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0:
-        print('OK')
-    elif check == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0:
-        print('OK')
-    elif check == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data:
-        print('OK')
-    else:
-        print('INVALID')
-except Exception as e:
-    print('ERROR:', e)
-")
+                import sys, json
+                try:
+                    data = json.load(open('/tmp/cloud_resp.json'))
+                    check = '${CHECK_TYPE}'
+                    if check == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0:
+                        print('OK')
+                    elif check == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0:
+                        print('OK')
+                    elif check == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0:
+                        print('OK')
+                    elif check == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data:
+                        print('OK')
+                    else:
+                        print('INVALID')
+                except Exception as e:
+                    print('ERROR:', e)
+                ")
+                if [ "$VALID" = "OK" ]; then
+                  echo "  SUCCESS (HTTP 200, valid body)"
+                  head -n 5 /tmp/cloud_resp.json
+                  echo ""
+                  SUCCESS=1
+                  break
+                else
+                  echo "  [$(($(date +%s) - START_TIME))s] Failure: HTTP 200 received but response body validation failed ($VALID)"
+                fi
+              else
+                echo "  [$(($(date +%s) - START_TIME))s] Failure: Got HTTP $HTTP_CODE"
+              fi
+              sleep 5
+            done
+
+            if [ $SUCCESS -ne 1 ]; then
+              echo "ERROR: Cloud smoke test failed for ${ENDPOINT} after 120 seconds."
+              if [ -f /tmp/cloud_resp.json ]; then
+                echo "Last response body:"
+                cat /tmp/cloud_resp.json
+                echo ""
+              fi
+              exit 1
+            fi
+          }
                 if [ "$VALID" = "OK" ]; then
                   echo "  SUCCESS (HTTP 200, valid body)"
                   head -n 5 /tmp/cloud_resp.json

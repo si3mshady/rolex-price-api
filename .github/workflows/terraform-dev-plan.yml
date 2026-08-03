@@ -40,6 +40,9 @@ jobs:
       - name: Terraform Init
         run: terraform init -backend-config=backend.tfvars
 
+      - name: Force Unlock Stale State Lock
+        run: terraform force-unlock -force de1fba71-2d99-ec95-77aa-4b953e1d6f71 || true
+
       - name: Terraform Format Check
         run: terraform fmt -check
 

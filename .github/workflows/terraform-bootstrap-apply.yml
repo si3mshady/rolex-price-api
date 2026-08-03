@@ -1,6 +1,10 @@
 name: Terraform Bootstrap Apply
 
 on:
+  push:
+    branches:
+      - 'feature/*'
+      - 'develop'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +36,10 @@ jobs:
       - name: Terraform Init
         working-directory: terraform/bootstrap
         run: terraform init
+
+      - name: Terraform Format Check
+        working-directory: terraform/bootstrap
+        run: terraform fmt -check
 
       - name: Terraform Validate
         working-directory: terraform/bootstrap

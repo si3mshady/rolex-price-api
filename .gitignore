@@ -53,6 +53,7 @@ coverage.xml
 # Terraform Infrastructure as Code
 # ------------------------------------------
 .terraform/
+**/.terraform/
 *.tfstate
 *.tfstate.*
 crash.log
@@ -64,6 +65,8 @@ override.tf.json
 *.tfplan
 *.tfvars
 !.tfvars.example
+.terraform.rc
+terraform.rc
 
 # ------------------------------------------
 # Frontend & Node.js
@@ -90,6 +93,17 @@ dist/
 *.pfx
 secrets.json
 .aws/
+.streamlit/secrets.toml
+.pypirc
+
+# ------------------------------------------
+# Logging & Temporary Files
+# ------------------------------------------
+*.log
+logs/
+temp/
+tmp/
+scratch/
 
 # ------------------------------------------
 # IDEs & System Files
@@ -110,12 +124,3 @@ secrets.json
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# ------------------------------------------
-# Logging & Temporary Files
-# ------------------------------------------
-*.log
-logs/
-temp/
-tmp/
-scratch/

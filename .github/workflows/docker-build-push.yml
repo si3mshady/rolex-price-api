@@ -25,6 +25,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Step 1b: Set up Python environment & execute unit test suite
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies & Run Pytest Suite
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest httpx
+          pytest
+
       # Step 2: Configure AWS Credentials using GitHub OIDC
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4

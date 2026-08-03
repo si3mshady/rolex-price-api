@@ -7,25 +7,25 @@
 
 import {
   to = aws_s3_bucket.state
-  id = var.state_bucket_name
+  id = "rolex-price-api-tf-state-dev"
 }
 
 import {
   to = aws_s3_bucket_versioning.state
-  id = var.state_bucket_name
+  id = "rolex-price-api-tf-state-dev"
 }
 
 import {
   to = aws_s3_bucket_server_side_encryption_configuration.state
-  id = var.state_bucket_name
+  id = "rolex-price-api-tf-state-dev"
 }
 
 import {
   to = aws_s3_bucket_public_access_block.state
-  id = var.state_bucket_name
+  id = "rolex-price-api-tf-state-dev"
 }
 
 import {
   to = aws_dynamodb_table.locks
-  id = var.lock_table_name
+  id = "rolex-price-api-tf-locks-dev"
 }

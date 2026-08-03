@@ -6,6 +6,10 @@ on:
       - 'develop'
   workflow_dispatch:
 
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
@@ -62,15 +66,69 @@ jobs:
 
       - name: Terraform Plan
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           echo "=== TERRAFORM PLAN ==="
-          terraform plan -no-color
+
+          LOCK_TABLE="rolex-price-api-tf-locks-dev"
+          REGION="us-east-1"
+          MAX_RETRIES=3
+          ATTEMPT=1
+
+          until [ $ATTEMPT -gt $MAX_RETRIES ]; do
+            echo "Executing terraform plan (Attempt $ATTEMPT/$MAX_RETRIES)..."
+            if terraform plan -no-color; then
+              echo "Terraform plan succeeded."
+              break
+            else
+              echo "Terraform plan failed on attempt $ATTEMPT."
+              STALE_LOCK_ID=$(aws dynamodb scan --table-name "$LOCK_TABLE" --region "$REGION" --query "Items[0].LockID.S" --output text 2>/dev/null || true)
+              if [ -n "$STALE_LOCK_ID" ] && [ "$STALE_LOCK_ID" != "None" ] && [ "$STALE_LOCK_ID" != "null" ]; then
+                echo "Found active state lock ID in DynamoDB: $STALE_LOCK_ID. Attempting force-unlock..."
+                terraform force-unlock -force "$STALE_LOCK_ID" || true
+              fi
+
+              if [ $ATTEMPT -eq $MAX_RETRIES ]; then
+                echo "ERROR: Terraform plan failed after $MAX_RETRIES attempts."
+                exit 1
+              fi
+              echo "Waiting 10 seconds before retrying..."
+              sleep 10
+              ATTEMPT=$((ATTEMPT + 1))
+            fi
+          done
 
       - name: Terraform Apply
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           echo "=== TERRAFORM APPLY ==="
-          terraform apply -auto-approve -no-color
+
+          LOCK_TABLE="rolex-price-api-tf-locks-dev"
+          REGION="us-east-1"
+          MAX_RETRIES=3
+          ATTEMPT=1
+
+          until [ $ATTEMPT -gt $MAX_RETRIES ]; do
+            echo "Executing terraform apply (Attempt $ATTEMPT/$MAX_RETRIES)..."
+            if terraform apply -auto-approve -no-color; then
+              echo "Terraform apply succeeded."
+              break
+            else
+              echo "Terraform apply failed on attempt $ATTEMPT."
+              STALE_LOCK_ID=$(aws dynamodb scan --table-name "$LOCK_TABLE" --region "$REGION" --query "Items[0].LockID.S" --output text 2>/dev/null || true)
+              if [ -n "$STALE_LOCK_ID" ] && [ "$STALE_LOCK_ID" != "None" ] && [ "$STALE_LOCK_ID" != "null" ]; then
+                echo "Found active state lock ID in DynamoDB: $STALE_LOCK_ID. Attempting force-unlock..."
+                terraform force-unlock -force "$STALE_LOCK_ID" || true
+              fi
+
+              if [ $ATTEMPT -eq $MAX_RETRIES ]; then
+                echo "ERROR: Terraform apply failed after $MAX_RETRIES attempts."
+                exit 1
+              fi
+              echo "Waiting 10 seconds before retrying..."
+              sleep 10
+              ATTEMPT=$((ATTEMPT + 1))
+            fi
+          done
 
       - name: Print Terraform Outputs
         run: |

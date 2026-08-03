@@ -1,7 +1,10 @@
 name: Docker Build, Push & Endpoint Validation
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Terraform Dev Apply"]
+    types:
+      - completed
     branches:
       - 'develop'
   workflow_dispatch:
@@ -19,6 +22,7 @@ jobs:
   build-push-validate:
     name: Build, Push & Validate Container
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       # Step 1: Checkout the repository
@@ -148,6 +152,56 @@ jobs:
           else
             echo "SUCCESS: All endpoint validation tests passed cleanly."
           fi
+
+      # Step 8b: Update AWS Lambda Function with new container image URI
+      - name: Update Lambda Function Image
+        run: |
+          echo "Updating AWS Lambda function 'rolex-price-api-dev-app' with new image: ${{ env.IMAGE_URI }}"
+          aws lambda update-function-code \
+            --function-name rolex-price-api-dev-app \
+            --image-uri ${{ env.IMAGE_URI }} \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Waiting for Lambda function code update to complete..."
+          aws lambda wait function-updated \
+            --function-name rolex-price-api-dev-app \
+            --region ${{ env.AWS_REGION }}
+
+      # Step 8c: Run Cloud Smoke Tests against API Gateway
+      - name: Run Cloud Smoke Tests
+        run: |
+          API_ID=$(aws apigatewayv2 get-apis --query "Items[?Name=='rolex-price-api-dev-http-api'].ApiId" --output text --region ${{ env.AWS_REGION }})
+          if [ -z "$API_ID" ] || [ "$API_ID" == "None" ]; then
+            echo "WARNING: Could not find API Gateway HTTP API 'rolex-price-api-dev-http-api'. Skipping live cloud smoke tests."
+            exit 0
+          fi
+
+          API_ENDPOINT="https://${API_ID}.execute-api.${{ env.AWS_REGION }}.amazonaws.com"
+          echo "Target API Gateway Endpoint: $API_ENDPOINT"
+
+          test_endpoint() {
+            ENDPOINT="$1"
+            URL="${API_ENDPOINT}${ENDPOINT}"
+            echo -n "Testing GET ${URL} ... "
+            HTTP_CODE=$(curl -s -o /tmp/cloud_resp.json -w "%{http_code}" "$URL")
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "SUCCESS (HTTP 200)"
+              head -n 5 /tmp/cloud_resp.json || true
+              echo ""
+            else
+              echo "FAILED (HTTP $HTTP_CODE)"
+              cat /tmp/cloud_resp.json || true
+              echo ""
+              exit 1
+            fi
+          }
+
+          test_endpoint "/health"
+          test_endpoint "/watches"
+          test_endpoint "/collections"
+          test_endpoint "/statistics"
+
+          echo "All live cloud smoke tests passed successfully (HTTP 200)."
 
       # Step 9: Output Build & Deployment Summary
       - name: Output Summary

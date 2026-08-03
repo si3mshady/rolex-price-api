@@ -30,10 +30,8 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# S3 access policy statement document if S3 bucket ARN is provided
+# S3 access policy statement document
 data "aws_iam_policy_document" "s3_access" {
-  count = var.s3_bucket_arn != "" ? 1 : 0
-
   statement {
     effect = "Allow"
     actions = [
@@ -49,8 +47,8 @@ data "aws_iam_policy_document" "s3_access" {
 }
 
 resource "aws_iam_role_policy" "s3_access" {
-  count  = var.s3_bucket_arn != "" ? 1 : 0
   name   = "${var.role_name}-s3-access"
   role   = aws_iam_role.lambda_exec.id
-  policy = data.aws_iam_policy_document.s3_access[0].json
+  policy = data.aws_iam_policy_document.s3_access.json
 }
+

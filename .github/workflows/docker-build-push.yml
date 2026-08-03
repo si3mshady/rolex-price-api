@@ -46,6 +46,12 @@ jobs:
           audience: sts.amazonaws.com
           role-skip-session-tagging: true
 
+      # Step 2b: Verify ECR Repository Exists (Terraform/ECR Validation)
+      - name: Verify ECR Repository Exists
+        run: |
+          echo "Validating target ECR repository '${{ env.ECR_REPOSITORY }}' exists..."
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }}
+
       # Step 3: Log in to Amazon ECR
       - name: Log in to Amazon ECR
         id: login-ecr

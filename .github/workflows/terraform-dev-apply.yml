@@ -51,22 +51,33 @@ jobs:
           echo "=== TERRAFORM VERSION ==="
           terraform version
 
-      - name: Terraform Init
+      # Step 1: Terraform Bootstrap Infrastructure (S3 Remote State Bucket & DynamoDB Lock Table)
+      - name: Terraform Bootstrap Apply
+        run: |
+          set -euo pipefail
+          echo "=== TERRAFORM BOOTSTRAP APPLY ==="
+          cd ../../bootstrap
+          terraform init
+          terraform fmt -check
+          terraform validate
+          terraform apply -auto-approve
+
+      - name: Terraform Dev Init
         run: |
           set -euxo pipefail
-          echo "=== TERRAFORM INIT ==="
+          echo "=== TERRAFORM DEV INIT ==="
           terraform init -backend-config=backend.tfvars
 
-      - name: Terraform Format Check
+      - name: Terraform Dev Format Check
         run: |
           set -euxo pipefail
-          echo "=== TERRAFORM FORMAT CHECK ==="
+          echo "=== TERRAFORM DEV FORMAT CHECK ==="
           terraform fmt -check
 
-      - name: Terraform Validate
+      - name: Terraform Dev Validate
         run: |
           set -euxo pipefail
-          echo "=== TERRAFORM VALIDATE ==="
+          echo "=== TERRAFORM DEV VALIDATE ==="
           terraform validate
 
       # Step 2: Terraform Stage 1 Apply (Base Infrastructure: ECR, IAM, S3, CloudWatch)
@@ -309,31 +320,6 @@ jobs:
                 except Exception as e:
                     print('ERROR:', e)
                 ")
-                if [ "$VALID" = "OK" ]; then
-                  echo "  SUCCESS (HTTP 200, valid body)"
-                  head -n 5 /tmp/cloud_resp.json
-                  echo ""
-                  SUCCESS=1
-                  break
-                else
-                  echo "  [$(($(date +%s) - START_TIME))s] Failure: HTTP 200 received but response body validation failed ($VALID)"
-                fi
-              else
-                echo "  [$(($(date +%s) - START_TIME))s] Failure: Got HTTP $HTTP_CODE"
-              fi
-              sleep 5
-            done
-
-            if [ $SUCCESS -ne 1 ]; then
-              echo "ERROR: Cloud smoke test failed for ${ENDPOINT} after 120 seconds."
-              if [ -f /tmp/cloud_resp.json ]; then
-                echo "Last response body:"
-                cat /tmp/cloud_resp.json
-                echo ""
-              fi
-              exit 1
-            fi
-          }
                 if [ "$VALID" = "OK" ]; then
                   echo "  SUCCESS (HTTP 200, valid body)"
                   head -n 5 /tmp/cloud_resp.json

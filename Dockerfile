@@ -27,6 +27,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
+    READINESS_CHECK_PATH=/health \
     PATH="/opt/venv/bin:$PATH"
 
 # Copy AWS Lambda Web Adapter extension for AWS Lambda container compatibility
@@ -54,5 +55,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Launch production server via Uvicorn
+# Launch production server via AWS Lambda Web Adapter entrypoint and Uvicorn CMD
+ENTRYPOINT ["/opt/extensions/lambda-adapter"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

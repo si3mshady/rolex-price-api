@@ -265,14 +265,12 @@ except Exception as e:
           cat /tmp/lambda_resp.json
           echo ""
 
-          python3 -c "
-          import json
-          data = json.load(open('/tmp/lambda_resp.json'))
-          assert data.get('statusCode') == 200, f'Expected statusCode 200, got {data.get(\"statusCode\")}'
-          body = json.loads(data.get('body', '{}')) if isinstance(data.get('body'), str) else data.get('body', {})
-          assert body.get('status') == 'healthy', f'Expected status healthy, got {body.get(\"status\")}'
-          print('Direct Lambda invocation validation passed successfully.')
-          "
+          python3 -c "import json
+data = json.load(open('/tmp/lambda_resp.json'))
+assert data.get('statusCode') == 200, f'Expected statusCode 200, got {data.get(\"statusCode\")}'
+body = json.loads(data.get('body', '{}')) if isinstance(data.get('body'), str) else data.get('body', {})
+assert body.get('status') == 'healthy', f'Expected status healthy, got {body.get(\"status\")}'
+print('Direct Lambda invocation validation passed successfully.')"
 
       # Step 7: Run Cloud Smoke Tests against API Gateway
       - name: Run Cloud Smoke Tests

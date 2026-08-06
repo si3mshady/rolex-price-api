@@ -1,10 +1,10 @@
 name: Terraform Dev Apply
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'develop'
-  workflow_dispatch:
 
 permissions:
   id-token: write

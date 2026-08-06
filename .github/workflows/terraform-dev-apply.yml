@@ -3,7 +3,6 @@ name: Terraform Dev Apply
 on:
   push:
     branches:
-      - 'feature/*'
       - 'develop'
   workflow_dispatch:
 

@@ -7,10 +7,6 @@ on:
       - 'develop'
   workflow_dispatch:
 
-concurrency:
-  group: terraform-dev
-  cancel-in-progress: false
-
 permissions:
   id-token: write
   contents: read

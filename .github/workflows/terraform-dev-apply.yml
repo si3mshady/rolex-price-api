@@ -1,11 +1,11 @@
 name: Terraform Dev Apply
 
 on:
-  workflow_dispatch:
   push:
     branches:
+      - 'feature/*'
       - 'develop'
-      - 'main'
+  workflow_dispatch:
 
 concurrency:
   group: terraform-dev

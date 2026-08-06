@@ -32,6 +32,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Copy AWS Lambda Web Adapter extension for AWS Lambda container compatibility
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
+RUN chmod +x /opt/extensions/lambda-adapter
 
 # Create non-root user for security best practices in container environments
 RUN groupadd -g 10001 appgroup && \
@@ -55,6 +56,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Launch production server via AWS Lambda Web Adapter entrypoint and Uvicorn CMD
-ENTRYPOINT ["/opt/extensions/lambda-adapter"]
+# Launch production server via Uvicorn
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

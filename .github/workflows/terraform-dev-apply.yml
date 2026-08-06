@@ -169,22 +169,7 @@ jobs:
               return
             fi
 
-            VALID=$(python3 -c "import sys, json
-try:
-    data = json.load(open('/tmp/resp.json'))
-    check = '${CHECK_TYPE}'
-    if check == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0:
-        print('OK')
-    elif check == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0:
-        print('OK')
-    elif check == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0:
-        print('OK')
-    elif check == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data:
-        print('OK')
-    else:
-        print('INVALID')
-except Exception as e:
-    print('ERROR:', e)")
+            VALID=$(python3 -c "import sys, json; data = json.load(open('/tmp/resp.json')); c = '${CHECK_TYPE}'; print('OK' if (c == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0) or (c == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0) or (c == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0) or (c == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data) else 'INVALID')")
             if [ "$VALID" = "OK" ]; then
               echo "SUCCESS (HTTP 200, valid response body)"
             else
@@ -265,12 +250,7 @@ except Exception as e:
           cat /tmp/lambda_resp.json
           echo ""
 
-          python3 -c "import json
-data = json.load(open('/tmp/lambda_resp.json'))
-assert data.get('statusCode') == 200, f'Expected statusCode 200, got {data.get(\"statusCode\")}'
-body = json.loads(data.get('body', '{}')) if isinstance(data.get('body'), str) else data.get('body', {})
-assert body.get('status') == 'healthy', f'Expected status healthy, got {body.get(\"status\")}'
-print('Direct Lambda invocation validation passed successfully.')"
+          python3 -c "import json; data = json.load(open('/tmp/lambda_resp.json')); assert data.get('statusCode') == 200, f'Expected 200, got {data.get(\"statusCode\")}'; body = json.loads(data.get('body', '{}')) if isinstance(data.get('body'), str) else data.get('body', {}); assert body.get('status') == 'healthy', f'Expected healthy, got {body.get(\"status\")}'; print('Direct Lambda invocation validation passed successfully.')"
 
       # Step 7: Run Cloud Smoke Tests against API Gateway
       - name: Run Cloud Smoke Tests
@@ -295,22 +275,7 @@ print('Direct Lambda invocation validation passed successfully.')"
             while [ $(($(date +%s) - START_TIME)) -lt $MAX_TIME ]; do
               HTTP_CODE=$(curl -s -o /tmp/cloud_resp.json -w "%{http_code}" "$URL" || echo "000")
               if [ "$HTTP_CODE" -eq 200 ]; then
-                VALID=$(python3 -c "import sys, json
-try:
-    data = json.load(open('/tmp/cloud_resp.json'))
-    check = '${CHECK_TYPE}'
-    if check == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0:
-        print('OK')
-    elif check == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0:
-        print('OK')
-    elif check == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0:
-        print('OK')
-    elif check == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data:
-        print('OK')
-    else:
-        print('INVALID')
-except Exception as e:
-    print('ERROR:', e)")
+                VALID=$(python3 -c "import sys, json; data = json.load(open('/tmp/cloud_resp.json')); c = '${CHECK_TYPE}'; print('OK' if (c == 'health' and data.get('status') == 'healthy' and data.get('watches_loaded', 0) > 0) or (c == 'watches' and data.get('total', 0) > 0 and len(data.get('items', [])) > 0) or (c == 'collections' and data.get('total_collections', 0) > 0 and len(data.get('collections', [])) > 0) or (c == 'statistics' and data.get('total_watches', 0) > 0 and 'price_stats' in data) else 'INVALID')")
                 if [ "$VALID" = "OK" ]; then
                   echo "  SUCCESS (HTTP 200, valid body)"
                   head -n 5 /tmp/cloud_resp.json

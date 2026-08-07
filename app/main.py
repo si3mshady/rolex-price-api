@@ -63,6 +63,36 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def verify_api_key_middleware(request: Request, call_next):
+    """
+    Validates X-Api-Key header when API_KEY_REQUIRED is enabled.
+    Excluded open paths: /health, /docs, /redoc, /openapi.json, /.
+    """
+    if settings.API_KEY_REQUIRED:
+        open_paths = {
+            "/health",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/favicon.ico",
+            "/",
+        }
+        if request.url.path not in open_paths:
+            api_key = request.headers.get("X-Api-Key")
+            if not api_key or api_key != settings.API_KEY:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content=ErrorResponse(
+                        error=ErrorDetail(
+                            code="UNAUTHORIZED",
+                            message="Invalid or missing API Key. Provide a valid 'X-Api-Key' header.",
+                        )
+                    ).model_dump(),
+                )
+    return await call_next(request)
+
+
 # Exception Handlers
 @app.exception_handler(RolexNotFoundError)
 async def rolex_not_found_handler(request: Request, exc: RolexNotFoundError):

@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100
 
+    # API Security
+    API_KEY_REQUIRED: bool = False
+    API_KEY: str = "rolex-api-secret-key"
+
     # API Documentation URLs
     DOCS_URL: str = "/docs"
     REDOC_URL: str = "/redoc"

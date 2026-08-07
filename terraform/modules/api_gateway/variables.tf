@@ -24,3 +24,16 @@ variable "tags" {
   description = "Tags to apply to API Gateway resources"
   default     = {}
 }
+
+variable "throttling_burst_limit" {
+  type        = number
+  description = "Throttling burst limit for default stage"
+  default     = 200
+}
+
+variable "throttling_rate_limit" {
+  type        = number
+  description = "Throttling rate limit (requests per second) for default stage"
+  default     = 100
+}
+

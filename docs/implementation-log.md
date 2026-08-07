@@ -26,10 +26,30 @@ This document tracks all incremental production-readiness enhancements made to t
 ## Record 002: Production Readiness Plan & Baseline Capture
 - **Date**: 2026-08-07
 - **Branch**: `feature/production-readiness`
-- **Commit**: In progress
+- **Commit**: `590cca1`
 - **Problem Solved**: Need a persistent learning artifact and audit trail mapping out upcoming production readiness enhancements without breaking working architecture.
 - **Implementation Decision**:
   - Created [`docs/plans/production-readiness-plan.md`](file:///home/si3mshady/rolex-price-api/docs/plans/production-readiness-plan.md) documenting baseline architecture, CI/CD state, identified gaps, risk controls, and interview talking points.
   - Initialized [`docs/implementation-log.md`](file:///home/si3mshady/rolex-price-api/docs/implementation-log.md) to log every enhancement step-by-step.
 - **Validation Performed**: Verified baseline architecture and git history clean status.
 - **Lessons Learned**: Establishing clear audit documents and implementation logs before coding prevents scope creep and preserves context for future engineering reviews.
+
+---
+
+## Record 003: Production API Security & Rate Limiting (Phase 1)
+- **Date**: 2026-08-07
+- **Branch**: `feature/api-security`
+- **Commit**: Pending merge
+- **Problem Solved**: Endpoints lacked API Key authentication controls and request throttling limits for higher environments.
+- **Implementation Decision**:
+  - Configured `default_route_settings` in [`terraform/modules/api_gateway`](file:///home/si3mshady/rolex-price-api/terraform/modules/api_gateway) with `throttling_rate_limit = 100` req/sec and `throttling_burst_limit = 200`.
+  - Added environment-tiered security in [`app/config.py`](file:///home/si3mshady/rolex-price-api/app/config.py) and [`app/main.py`](file:///home/si3mshady/rolex-price-api/app/main.py) (`verify_api_key_middleware` validates `X-Api-Key` when `API_KEY_REQUIRED=True`).
+  - Maintained `/health` as an unauthenticated open path across all environments.
+  - Authored unit test suite [`tests/test_security.py`](file:///home/si3mshady/rolex-price-api/tests/test_security.py) (5 tests passing).
+  - Updated [`docs/security.md`](file:///home/si3mshady/rolex-price-api/docs/security.md) with cURL/Python client usage, header specs, and Cognito JWT migration roadmap.
+- **Validation Performed**:
+  - `pytest -v tests/test_security.py` passed 5/5 tests in 0.13s.
+  - `black --check app tests` passed with 0 reformatting requirements.
+  - `terraform fmt -check` passed.
+- **Lessons Learned**: Environment-specific security controls keep local development friction-free while protecting staging/production endpoints against unauthorized access and throttling attacks.
+

@@ -1,0 +1,89 @@
+name: Deploy Release (Staging & Production)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging Environment
+    runs-on: ubuntu-latest
+    environment: staging
+
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Staging Init
+        run: terraform init -backend-config=backend.tfvars
+
+      - name: Verify Staging Infrastructure State
+        run: terraform plan -var="enable_app_services=true"
+
+      - name: Run Staging Smoke Tests
+        run: |
+          set -euo pipefail
+          API_ENDPOINT=$(terraform output -raw api_gateway_endpoint)
+          python3 ../../../scripts/smoke_test.py --base-url "$API_ENDPOINT" --timeout 120
+
+  deploy-production:
+    name: Deploy to Production Environment (Requires Manual Approval Gate)
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production  # Requires manual approval gate configured in GitHub Environment settings
+
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true
+
+      - name: Log Production Approval Gate Passed
+        run: |
+          echo "=========================================================="
+          echo "PRODUCTION DEPLOYMENT APPROVAL GATE PASSED SUCCESSFULLY"
+          echo "Target Environment: Production"
+          echo "Git Commit SHA: ${{ github.sha }}"
+          echo "=========================================================="

@@ -32,10 +32,7 @@ name: Terraform Bootstrap Validation and Plan
 # - Pushes to the develop branch
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'feature/*'
-      - 'develop'
+
 
 # Minimum permissions required for OIDC authentication and repo read access
 permissions:

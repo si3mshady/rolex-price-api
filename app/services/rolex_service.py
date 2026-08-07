@@ -4,7 +4,11 @@ from typing import List, Optional, Dict, Any, Tuple
 
 from app.config import settings
 from app.models.watch import Watch
-from app.schemas.watch import WatchSchema, PaginatedWatchResponse, WatchReferenceDetailResponse
+from app.schemas.watch import (
+    WatchSchema,
+    PaginatedWatchResponse,
+    WatchReferenceDetailResponse,
+)
 from app.schemas.collection import CollectionSummary, CollectionListResponse
 from app.schemas.statistics import StatisticsResponse, PriceStatistics, SizeStatistics
 from app.schemas.health import HealthResponse
@@ -13,6 +17,7 @@ from app.utils.data_loader import load_rolex_data
 
 class RolexNotFoundError(Exception):
     """Exception raised when a requested Rolex resource is not found."""
+
     def __init__(self, message: str):
         self.message = message
         super().__init__(self.message)
@@ -46,6 +51,7 @@ class RolexService:
         Returns system health and catalog state.
         """
         from datetime import datetime, timezone
+
         return HealthResponse(
             status="healthy",
             app_name=settings.APP_NAME,
@@ -82,7 +88,9 @@ class RolexService:
             is_por=is_por,
         )
 
-        sorted_watches = self._sort_watches(filtered, sort_by=sort_by, sort_order=sort_order)
+        sorted_watches = self._sort_watches(
+            filtered, sort_by=sort_by, sort_order=sort_order
+        )
         return self._paginate(sorted_watches, page=page, limit=limit)
 
     def get_watch_by_reference(self, reference: str) -> WatchReferenceDetailResponse:
@@ -93,7 +101,9 @@ class RolexService:
         matching = [w for w in self._watches if w.reference.upper() == ref_norm]
 
         if not matching:
-            raise RolexNotFoundError(f"Rolex reference '{reference}' was not found in the catalog.")
+            raise RolexNotFoundError(
+                f"Rolex reference '{reference}' was not found in the catalog."
+            )
 
         canonical_ref = matching[0].reference
         canonical_collection = matching[0].collection
@@ -148,11 +158,14 @@ class RolexService:
             )
 
         # Sorting collections
-        reverse = (sort_order.lower() == "desc")
+        reverse = sort_order.lower() == "desc"
         if sort_by == "watch_count":
             summaries.sort(key=lambda c: c.watch_count, reverse=reverse)
         elif sort_by == "avg_price":
-            summaries.sort(key=lambda c: (c.avg_price if c.avg_price is not None else -1), reverse=reverse)
+            summaries.sort(
+                key=lambda c: (c.avg_price if c.avg_price is not None else -1),
+                reverse=reverse,
+            )
         else:  # default to name
             summaries.sort(key=lambda c: c.name.lower(), reverse=reverse)
 
@@ -248,9 +261,15 @@ class RolexService:
             for comp in w.complications:
                 complication_counts[comp] = complication_counts.get(comp, 0) + 1
 
-        sorted_priced = sorted(priced_watches, key=lambda w: w.price if w.price is not None else 0, reverse=True)
+        sorted_priced = sorted(
+            priced_watches,
+            key=lambda w: w.price if w.price is not None else 0,
+            reverse=True,
+        )
         most_expensive = [WatchSchema.model_validate(w) for w in sorted_priced[:5]]
-        least_expensive = [WatchSchema.model_validate(w) for w in sorted_priced[-5:][::-1]]
+        least_expensive = [
+            WatchSchema.model_validate(w) for w in sorted_priced[-5:][::-1]
+        ]
 
         return StatisticsResponse(
             total_watches=total_watches,
@@ -258,8 +277,12 @@ class RolexService:
             total_collections=unique_collections,
             price_stats=price_stats,
             size_stats=size_stats,
-            collection_counts=dict(sorted(collection_counts.items(), key=lambda x: x[1], reverse=True)),
-            complication_counts=dict(sorted(complication_counts.items(), key=lambda x: x[1], reverse=True)),
+            collection_counts=dict(
+                sorted(collection_counts.items(), key=lambda x: x[1], reverse=True)
+            ),
+            complication_counts=dict(
+                sorted(complication_counts.items(), key=lambda x: x[1], reverse=True)
+            ),
             most_expensive_watches=most_expensive,
             least_expensive_watches=least_expensive,
         )
@@ -282,10 +305,14 @@ class RolexService:
             filtered = [w for w in filtered if coll_clean in w.collection.lower()]
 
         if min_price is not None:
-            filtered = [w for w in filtered if w.price is not None and w.price >= min_price]
+            filtered = [
+                w for w in filtered if w.price is not None and w.price >= min_price
+            ]
 
         if max_price is not None:
-            filtered = [w for w in filtered if w.price is not None and w.price <= max_price]
+            filtered = [
+                w for w in filtered if w.price is not None and w.price <= max_price
+            ]
 
         if min_size is not None:
             filtered = [w for w in filtered if w.size >= min_size]
@@ -296,7 +323,8 @@ class RolexService:
         if complication:
             comp_clean = complication.strip().lower()
             filtered = [
-                w for w in filtered
+                w
+                for w in filtered
                 if any(comp_clean in c.lower() for c in w.complications)
             ]
 
@@ -305,8 +333,10 @@ class RolexService:
 
         return filtered
 
-    def _sort_watches(self, watches: List[Watch], sort_by: str, sort_order: str) -> List[Watch]:
-        reverse = (sort_order.lower() == "desc")
+    def _sort_watches(
+        self, watches: List[Watch], sort_by: str, sort_order: str
+    ) -> List[Watch]:
+        reverse = sort_order.lower() == "desc"
 
         def sort_key(w: Watch):
             if sort_by == "price":
@@ -323,7 +353,9 @@ class RolexService:
 
         return sorted(watches, key=sort_key, reverse=reverse)
 
-    def _paginate(self, watches: List[Watch], page: int, limit: int) -> PaginatedWatchResponse:
+    def _paginate(
+        self, watches: List[Watch], page: int, limit: int
+    ) -> PaginatedWatchResponse:
         total = len(watches)
         total_pages = ceil(total / limit) if limit > 0 else 1
         page = max(1, page)

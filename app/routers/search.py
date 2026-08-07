@@ -18,8 +18,12 @@ async def search_watches(
     page: int = Query(1, ge=1, description="Page number for pagination"),
     limit: int = Query(20, ge=1, le=100, description="Items per page limit"),
     collection: Optional[str] = Query(None, description="Optional collection filter"),
-    min_price: Optional[float] = Query(None, ge=0, description="Optional minimum price filter"),
-    max_price: Optional[float] = Query(None, ge=0, description="Optional maximum price filter"),
+    min_price: Optional[float] = Query(
+        None, ge=0, description="Optional minimum price filter"
+    ),
+    max_price: Optional[float] = Query(
+        None, ge=0, description="Optional maximum price filter"
+    ),
 ) -> PaginatedWatchResponse:
     """
     Search Rolex catalog by text query.

@@ -3,10 +3,10 @@ from fastapi.testclient import TestClient
 from app.schemas.watch import PaginatedWatchResponse, WatchReferenceDetailResponse
 from app.schemas.error import ErrorResponse
 
-
 # ============================================================================
 # GET /watches Test Cases
 # ============================================================================
+
 
 def test_list_watches_default_pagination(client: TestClient):
     """
@@ -194,6 +194,7 @@ def test_list_watches_invalid_page_and_limit(client: TestClient):
 # ============================================================================
 # GET /watches/{reference} Test Cases
 # ============================================================================
+
 
 def test_get_watch_by_reference_success(client: TestClient):
     """

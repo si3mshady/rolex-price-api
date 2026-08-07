@@ -1,11 +1,8 @@
 name: Terraform Dev Plan
 
 on:
-  push:
-    branches:
-      - 'feature/*'
-      - 'develop'
   workflow_dispatch:
+
 
 permissions:
   id-token: write

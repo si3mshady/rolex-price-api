@@ -36,7 +36,16 @@ def test_statistics_price_metrics(client: TestClient):
     assert price_stats.min_price == 8250.0
     assert price_stats.max_price == 18500.0
 
-    expected_prices = [14500.0, 18500.0, 10250.0, 10800.0, 9100.0, 10500.0, 8250.0, 10900.0]
+    expected_prices = [
+        14500.0,
+        18500.0,
+        10250.0,
+        10800.0,
+        9100.0,
+        10500.0,
+        8250.0,
+        10900.0,
+    ]
     expected_avg = round(statistics.mean(expected_prices), 2)
     expected_median = round(statistics.median(expected_prices), 2)
 

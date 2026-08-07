@@ -53,7 +53,9 @@ def load_rolex_data(file_path: Union[str, Path]) -> List[Watch]:
         complications: List[str] = []
         if isinstance(complications_raw, list):
             complications = [
-                str(comp).strip() for comp in complications_raw if comp and str(comp).strip()
+                str(comp).strip()
+                for comp in complications_raw
+                if comp and str(comp).strip()
             ]
 
         # Generate unique watch ID

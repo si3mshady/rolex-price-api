@@ -1,0 +1,102 @@
+name: Deploy Development (dev)
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: rolex-price-api-dev
+
+jobs:
+  deploy-dev:
+    name: Provision & Deploy to Development
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::916923735465:role/OIDC_SAAS
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+          role-skip-session-tagging: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Dev Init
+        run: terraform init -backend-config=backend.tfvars
+
+      - name: Terraform Stage 1 Apply (Base Infra: ECR, IAM, S3, CloudWatch)
+        run: |
+          set -euo pipefail
+          echo "=== TERRAFORM DEV APPLY (STAGE 1) ==="
+          terraform apply -var="enable_app_services=false" -auto-approve -no-color
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Docker Image to ECR
+        run: |
+          set -euo pipefail
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          SHA_TAG="${GITHUB_SHA::8}"
+          IMAGE_TAGGED="$REGISTRY/${{ env.ECR_REPOSITORY }}:$SHA_TAG"
+          IMAGE_LATEST="$REGISTRY/${{ env.ECR_REPOSITORY }}:latest"
+          
+          echo "Building Docker image: $IMAGE_TAGGED"
+          docker build -t "$IMAGE_TAGGED" -t "$IMAGE_LATEST" -f ../../../Dockerfile ../../../
+
+          echo "Pushing Docker image to Amazon ECR..."
+          docker push "$IMAGE_TAGGED"
+          docker push "$IMAGE_LATEST"
+
+          echo "IMAGE_URI=$IMAGE_TAGGED" >> $GITHUB_ENV
+
+      - name: Run Local Container Smoke Tests
+        run: |
+          set -euo pipefail
+          echo "Spinning up container locally for smoke verification..."
+          docker run -d --name rolex-api-dev -p 8000:8000 "${{ env.IMAGE_URI }}"
+          
+          python3 ../../../scripts/smoke_test.py --base-url http://localhost:8000 --timeout 60
+          
+          docker stop rolex-api-dev && docker rm rolex-api-dev
+
+      - name: Terraform Stage 2 Apply (Lambda & API Gateway)
+        run: |
+          set -euo pipefail
+          echo "=== TERRAFORM DEV APPLY (STAGE 2) ==="
+          terraform apply -var="enable_app_services=true" -auto-approve -no-color
+
+      - name: Validate Direct Lambda Invocation
+        run: |
+          set -euo pipefail
+          FUNCTION_NAME="rolex-price-api-dev-app"
+          PAYLOAD='{"rawPath":"/health","requestContext":{"http":{"method":"GET"}}}'
+          aws lambda invoke --function-name "$FUNCTION_NAME" --payload "$PAYLOAD" --cli-binary-format raw-in-base64-out /tmp/lambda_resp.json
+          python3 -c "import json; d=json.load(open('/tmp/lambda_resp.json')); assert d.get('statusCode')==200; print('Lambda direct invocation verified.')"
+
+      - name: Run Cloud Smoke Tests
+        run: |
+          set -euo pipefail
+          API_ENDPOINT=$(terraform output -raw api_gateway_endpoint)
+          echo "Target API Endpoint: $API_ENDPOINT"
+          python3 ../../../scripts/smoke_test.py --base-url "$API_ENDPOINT" --timeout 120

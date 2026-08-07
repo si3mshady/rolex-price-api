@@ -14,7 +14,9 @@ def test_list_collections_default(client: TestClient):
     data = response.json()
     validated = CollectionListResponse.model_validate(data)
 
-    assert validated.total_collections == 5  # Daytona, Submariner, Datejust, GMT-Master II, Cellini
+    assert (
+        validated.total_collections == 5
+    )  # Daytona, Submariner, Datejust, GMT-Master II, Cellini
     assert len(validated.collections) == 5
 
 
@@ -26,7 +28,9 @@ def test_list_collections_summary_aggregations(client: TestClient):
     assert response.status_code == status.HTTP_200_OK
 
     data = CollectionListResponse.model_validate(response.json())
-    daytona = next((c for c in data.collections if c.name == "Cosmograph Daytona"), None)
+    daytona = next(
+        (c for c in data.collections if c.name == "Cosmograph Daytona"), None
+    )
     assert daytona is not None
     assert daytona.watch_count == 3
     assert daytona.min_price == 14500.0
@@ -42,12 +46,18 @@ def test_list_collections_sort_by_name_asc_and_desc(client: TestClient):
     """
     res_asc = client.get("/collections?sort_by=name&sort_order=asc")
     assert res_asc.status_code == status.HTTP_200_OK
-    names_asc = [c.name for c in CollectionListResponse.model_validate(res_asc.json()).collections]
+    names_asc = [
+        c.name
+        for c in CollectionListResponse.model_validate(res_asc.json()).collections
+    ]
     assert names_asc == sorted(names_asc, key=lambda x: x.lower())
 
     res_desc = client.get("/collections?sort_by=name&sort_order=desc")
     assert res_desc.status_code == status.HTTP_200_OK
-    names_desc = [c.name for c in CollectionListResponse.model_validate(res_desc.json()).collections]
+    names_desc = [
+        c.name
+        for c in CollectionListResponse.model_validate(res_desc.json()).collections
+    ]
     assert names_desc == sorted(names_asc, key=lambda x: x.lower(), reverse=True)
 
 
@@ -58,7 +68,10 @@ def test_list_collections_sort_by_watch_count(client: TestClient):
     response = client.get("/collections?sort_by=watch_count&sort_order=desc")
     assert response.status_code == status.HTTP_200_OK
 
-    counts = [c.watch_count for c in CollectionListResponse.model_validate(response.json()).collections]
+    counts = [
+        c.watch_count
+        for c in CollectionListResponse.model_validate(response.json()).collections
+    ]
     assert counts == sorted(counts, reverse=True)
 
 
@@ -69,7 +82,11 @@ def test_list_collections_sort_by_avg_price(client: TestClient):
     response = client.get("/collections?sort_by=avg_price&sort_order=desc")
     assert response.status_code == status.HTTP_200_OK
 
-    prices = [c.avg_price for c in CollectionListResponse.model_validate(response.json()).collections if c.avg_price is not None]
+    prices = [
+        c.avg_price
+        for c in CollectionListResponse.model_validate(response.json()).collections
+        if c.avg_price is not None
+    ]
     assert prices == sorted(prices, reverse=True)
 
 

@@ -13,8 +13,14 @@ router = APIRouter(prefix="/collections", tags=["Collections"])
     description="Retrieves a summary of all Rolex collection families, including model counts, price ranges, sizes, and complications.",
 )
 async def list_collections(
-    sort_by: str = Query("name", pattern="^(name|watch_count|avg_price)$", description="Field to sort collections by"),
-    sort_order: str = Query("asc", pattern="^(asc|desc)$", description="Sort direction ('asc' or 'desc')"),
+    sort_by: str = Query(
+        "name",
+        pattern="^(name|watch_count|avg_price)$",
+        description="Field to sort collections by",
+    ),
+    sort_order: str = Query(
+        "asc", pattern="^(asc|desc)$", description="Sort direction ('asc' or 'desc')"
+    ),
 ) -> CollectionListResponse:
     """
     Get breakdown of all Rolex collection families.

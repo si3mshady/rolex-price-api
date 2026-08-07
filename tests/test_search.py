@@ -57,7 +57,9 @@ def test_search_with_collection_and_price_filters(client: TestClient):
     """
     Test GET /search combining text query with collection and min/max price parameters.
     """
-    response = client.get("/search?q=Oystersteel&collection=Submariner&min_price=10000&max_price=11000")
+    response = client.get(
+        "/search?q=Oystersteel&collection=Submariner&min_price=10000&max_price=11000"
+    )
     assert response.status_code == status.HTTP_200_OK
 
     data = PaginatedWatchResponse.model_validate(response.json())

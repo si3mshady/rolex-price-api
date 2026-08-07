@@ -90,7 +90,7 @@ This document tracks all incremental production-readiness enhancements made to t
 ## Record 006: DevSecOps Scanners & Pipeline Hardening (Phase 4)
 - **Date**: 2026-08-07
 - **Branch**: `feature/devsecops`
-- **Commit**: Pending merge
+- **Commit**: `4b06ced`
 - **Problem Solved**: CI pipeline lacked automated security scanning for Python dependencies, IaC configurations, and container filesystem vulnerabilities.
 - **Implementation Decision**:
   - Added `security-and-compliance` job to [`.github/workflows/ci.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/ci.yml) incorporating `pip-audit`, `Checkov`, and `Trivy`.
@@ -99,6 +99,21 @@ This document tracks all incremental production-readiness enhancements made to t
 - **Validation Performed**:
   - Validated YAML syntax across all workflows.
 - **Lessons Learned**: Integrating non-blocking security scanners into CI provides early visibility into dependency CVEs and IaC security risks without slowing down active developer velocity.
+
+---
+
+## Record 007: Release Engineering & Semantic Versioning (Phase 5)
+- **Date**: 2026-08-07
+- **Branch**: `feature/release-engineering`
+- **Commit**: Pending merge
+- **Problem Solved**: Release history was untracked and git tag deployments lacked automated GitHub Release publishing.
+- **Implementation Decision**:
+  - Created [`CHANGELOG.md`](file:///home/si3mshady/rolex-price-api/CHANGELOG.md) adhering to Keep a Changelog and Semantic Versioning (`v1.0.0`).
+  - Enhanced [`.github/workflows/deploy-release.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/deploy-release.yml) to add `publish-github-release` job using `softprops/action-gh-release@v2`.
+- **Validation Performed**:
+  - Validated YAML syntax in `deploy-release.yml`.
+- **Lessons Learned**: Automating GitHub Release generation from changelogs upon git tag creation ensures clear release history visibility for consumers.
+
 
 
 

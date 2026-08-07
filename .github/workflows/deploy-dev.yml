@@ -106,7 +106,19 @@ jobs:
           set -euo pipefail
           DOCS_BUCKET=$(terraform output -raw docs_bucket_name)
           DOCS_URL=$(terraform output -raw docs_website_url)
-          echo "Syncing documentation to S3 bucket: $DOCS_BUCKET..."
-          aws s3 sync ../../../docs/ "s3://$DOCS_BUCKET/" --delete
-          echo "Public Documentation Site Live at: $DOCS_URL"
+          API_ENDPOINT=$(terraform output -raw api_gateway_endpoint)
+          
+          echo "Generating static Swagger UI documentation site..."
+          python3 ../../../scripts/generate_docs.py --api-url "$API_ENDPOINT" --out-dir ../../../docs-site
+          
+          echo "Syncing generated documentation to S3 bucket: $DOCS_BUCKET..."
+          aws s3 sync ../../../docs-site/ "s3://$DOCS_BUCKET/" --delete
+          
+          echo "Running post-deployment documentation smoke test..."
+          python3 ../../../scripts/smoke_test.py --base-url "$API_ENDPOINT" --docs-url "$DOCS_URL" --timeout 60
+          
+          echo "=========================================================="
+          echo "Documentation Website:"
+          echo "$DOCS_URL"
+          echo "=========================================================="
 

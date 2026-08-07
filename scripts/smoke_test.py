@@ -66,9 +66,42 @@ def test_endpoint(url: str, check_type: str, timeout: int = 120) -> bool:
     return False
 
 
+def test_docs_site(docs_url: str, timeout: int = 60) -> bool:
+    print(f"Testing S3 Documentation Website {docs_url} (Timeout: {timeout}s)...")
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        try:
+            # 1. Test index.html
+            index_target = docs_url.rstrip("/") + "/index.html"
+            req = urllib.request.Request(index_target, headers={"User-Agent": "SmokeTest/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.getcode() == 200:
+                    html_content = resp.read().decode("utf-8")
+                    if "SwaggerUIBundle" in html_content and "openapi.json" in html_content:
+                        # 2. Test openapi.json
+                        spec_target = docs_url.rstrip("/") + "/openapi.json"
+                        spec_req = urllib.request.Request(spec_target, headers={"User-Agent": "SmokeTest/1.0"})
+                        with urllib.request.urlopen(spec_req, timeout=10) as spec_resp:
+                            if spec_resp.getcode() == 200:
+                                spec_data = json.loads(spec_resp.read().decode("utf-8"))
+                                if "openapi" in spec_data and "paths" in spec_data:
+                                    elapsed = round(time.time() - start_time, 2)
+                                    print(f"  ✅ SUCCESS: S3 Docs Website & Swagger UI validated ({elapsed}s)")
+                                    return True
+        except Exception as err:
+            print(f"  ⏳ Docs site connection/validation error: {err}")
+            
+        time.sleep(5)
+        
+    print(f"  ❌ FAILED: S3 Docs Website {docs_url} did not pass smoke test within {timeout}s.")
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Rolex Price API Smoke Test")
     parser.add_argument("--base-url", required=True, help="Base API URL (e.g. http://localhost:8000 or https://xyz.execute-api.us-east-1.amazonaws.com)")
+    parser.add_argument("--docs-url", help="S3 Documentation Website URL to validate")
     parser.add_argument("--timeout", type=int, default=120, help="Per-endpoint timeout in seconds")
     args = parser.parse_args()
 
@@ -86,11 +119,15 @@ def main():
         if not test_endpoint(url, check_type, timeout=args.timeout):
             failed_count += 1
 
+    if args.docs_url:
+        if not test_docs_site(args.docs_url, timeout=args.timeout):
+            failed_count += 1
+
     if failed_count > 0:
-        print(f"\n❌ ERROR: {failed_count} endpoint smoke test(s) failed.")
+        print(f"\n❌ ERROR: {failed_count} smoke test(s) failed.")
         sys.exit(1)
     else:
-        print("\n✅ ALL ENDPOINT SMOKE TESTS PASSED SUCCESSFULLY.")
+        print("\n✅ ALL SMOKE TESTS PASSED SUCCESSFULLY.")
         sys.exit(0)
 
 

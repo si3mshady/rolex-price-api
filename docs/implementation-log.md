@@ -39,7 +39,7 @@ This document tracks all incremental production-readiness enhancements made to t
 ## Record 003: Production API Security & Rate Limiting (Phase 1)
 - **Date**: 2026-08-07
 - **Branch**: `feature/api-security`
-- **Commit**: Pending merge
+- **Commit**: `7ba7942`
 - **Problem Solved**: Endpoints lacked API Key authentication controls and request throttling limits for higher environments.
 - **Implementation Decision**:
   - Configured `default_route_settings` in [`terraform/modules/api_gateway`](file:///home/si3mshady/rolex-price-api/terraform/modules/api_gateway) with `throttling_rate_limit = 100` req/sec and `throttling_burst_limit = 200`.
@@ -52,4 +52,22 @@ This document tracks all incremental production-readiness enhancements made to t
   - `black --check app tests` passed with 0 reformatting requirements.
   - `terraform fmt -check` passed.
 - **Lessons Learned**: Environment-specific security controls keep local development friction-free while protecting staging/production endpoints against unauthorized access and throttling attacks.
+
+---
+
+## Record 004: Terraform S3 Documentation Hosting (Phase 2)
+- **Date**: 2026-08-07
+- **Branch**: `feature/docs-hosting`
+- **Commit**: Pending merge
+- **Problem Solved**: Technical documentation existed only locally within git markdown files, requiring reviewers to clone the repository to inspect system blueprints.
+- **Implementation Decision**:
+  - Created Terraform module [`terraform/modules/s3_website`](file:///home/si3mshady/rolex-price-api/terraform/modules/s3_website) managing S3 static website hosting (`index.html`), public access policies, and CORS configuration.
+  - Instantiated `s3_website` module in [`terraform/environments/dev/main.tf`](file:///home/si3mshady/rolex-price-api/terraform/environments/dev/main.tf) (`rolex-price-api-docs-dev`).
+  - Exported `docs_website_url` and `docs_bucket_name` in [`terraform/environments/dev/outputs.tf`](file:///home/si3mshady/rolex-price-api/terraform/environments/dev/outputs.tf).
+  - Updated [`.github/workflows/deploy-dev.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/deploy-dev.yml) to automatically sync `/docs/` contents to the S3 documentation bucket post-deployment (`aws s3 sync`).
+- **Validation Performed**:
+  - `terraform fmt -check -recursive terraform/` passed cleanly.
+  - Verified S3 website endpoint output format (`http://rolex-price-api-dev-docs.s3-website-us-east-1.amazonaws.com`).
+- **Lessons Learned**: Hosting static technical documentation via S3 allows external stakeholders and interviewers to inspect architectural blueprints instantly without local repository setup.
+
 

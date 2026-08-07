@@ -100,3 +100,13 @@ jobs:
           API_ENDPOINT=$(terraform output -raw api_gateway_endpoint)
           echo "Target API Endpoint: $API_ENDPOINT"
           python3 ../../../scripts/smoke_test.py --base-url "$API_ENDPOINT" --timeout 120
+
+      - name: Deploy Static Documentation to S3 Website
+        run: |
+          set -euo pipefail
+          DOCS_BUCKET=$(terraform output -raw docs_bucket_name)
+          DOCS_URL=$(terraform output -raw docs_website_url)
+          echo "Syncing documentation to S3 bucket: $DOCS_BUCKET..."
+          aws s3 sync ../../../docs/ "s3://$DOCS_BUCKET/" --delete
+          echo "Public Documentation Site Live at: $DOCS_URL"
+

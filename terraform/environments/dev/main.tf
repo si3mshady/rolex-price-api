@@ -89,3 +89,13 @@ module "api_gateway" {
   tags                 = local.common_tags
 }
 
+# 6. S3 Public Documentation Website Bucket
+module "s3_website" {
+  source = "../../modules/s3_website"
+
+  bucket_name   = "${local.name_prefix}-docs"
+  force_destroy = true
+  tags          = local.common_tags
+}
+
+

@@ -33,3 +33,14 @@ output "ecr_repository_url" {
   description = "URL of the ECR container repository"
   value       = module.ecr.repository_url
 }
+
+output "docs_website_url" {
+  description = "Public URL of the static S3 documentation website"
+  value       = module.s3_website.website_url
+}
+
+output "docs_bucket_name" {
+  description = "Name of the S3 documentation bucket"
+  value       = module.s3_website.bucket_id
+}
+

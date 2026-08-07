@@ -105,6 +105,7 @@ temp/
 tmp/
 scratch/
 docs-site/
+openapi.json
 
 # ------------------------------------------
 # IDEs & System Files

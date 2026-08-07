@@ -75,6 +75,10 @@ During local and pipeline validation, 3 critical issues were identified and reso
 - **Symptom**: Smoke tests were written as multi-line inline bash/python commands in GitHub Actions YAML, making them fragile and hard to debug.
 - **Fix Applied**: Externalized smoke testing into a dedicated, standalone CLI script [`scripts/smoke_test.py`](file:///home/si3mshady/rolex-price-api/scripts/smoke_test.py) that asserts HTTP status codes AND response payload fields (`status == "healthy"`, `watches_loaded > 0`, `total_watches > 0`).
 
+### Issue 4: YAML Syntax Error on Unquoted Step Name (Line 46)
+- **Symptom**: `deploy-dev.yml` failed GitHub Actions parser validation on line 46 due to unquoted colon-space (`Base Infra: ECR...`).
+- **Fix Applied**: Enclosed the step name in double quotes (`- name: "Terraform Stage 1 Apply (Base Infra: ECR, IAM, S3, CloudWatch)"`) and verified syntax across all workflow files using `pyyaml`.
+
 ---
 
 ## 4. Verification Checklist Results

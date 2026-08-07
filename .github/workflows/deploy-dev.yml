@@ -43,7 +43,7 @@ jobs:
       - name: Terraform Dev Init
         run: terraform init -backend-config=backend.tfvars
 
-      - name: Terraform Stage 1 Apply (Base Infra: ECR, IAM, S3, CloudWatch)
+      - name: "Terraform Stage 1 Apply (Base Infra: ECR, IAM, S3, CloudWatch)"
         run: |
           set -euo pipefail
           echo "=== TERRAFORM DEV APPLY (STAGE 1) ==="
@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          SHA_TAG="${GITHUB_SHA::8}"
+          SHA_TAG=$(echo "${{ github.sha }}" | cut -c1-8)
           IMAGE_TAGGED="$REGISTRY/${{ env.ECR_REPOSITORY }}:$SHA_TAG"
           IMAGE_LATEST="$REGISTRY/${{ env.ECR_REPOSITORY }}:latest"
           

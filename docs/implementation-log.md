@@ -58,7 +58,7 @@ This document tracks all incremental production-readiness enhancements made to t
 ## Record 004: Terraform S3 Documentation Hosting (Phase 2)
 - **Date**: 2026-08-07
 - **Branch**: `feature/docs-hosting`
-- **Commit**: Pending merge
+- **Commit**: `fa2bf0c`
 - **Problem Solved**: Technical documentation existed only locally within git markdown files, requiring reviewers to clone the repository to inspect system blueprints.
 - **Implementation Decision**:
   - Created Terraform module [`terraform/modules/s3_website`](file:///home/si3mshady/rolex-price-api/terraform/modules/s3_website) managing S3 static website hosting (`index.html`), public access policies, and CORS configuration.
@@ -69,5 +69,21 @@ This document tracks all incremental production-readiness enhancements made to t
   - `terraform fmt -check -recursive terraform/` passed cleanly.
   - Verified S3 website endpoint output format (`http://rolex-price-api-dev-docs.s3-website-us-east-1.amazonaws.com`).
 - **Lessons Learned**: Hosting static technical documentation via S3 allows external stakeholders and interviewers to inspect architectural blueprints instantly without local repository setup.
+
+---
+
+## Record 005: CloudWatch Dashboards, Metric Alarms & SRE Framework (Phase 3)
+- **Date**: 2026-08-07
+- **Branch**: `feature/observability`
+- **Commit**: Pending merge
+- **Problem Solved**: System lacked visual operational dashboards, proactive CloudWatch alarms, and defined SLI/SLO error budget frameworks.
+- **Implementation Decision**:
+  - Enhanced [`terraform/modules/cloudwatch`](file:///home/si3mshady/rolex-price-api/terraform/modules/cloudwatch) to provision `aws_cloudwatch_dashboard` (widgets for Invocations, Errors, Throttles, Avg/p95/p99 Duration) and `aws_cloudwatch_metric_alarm` resources (`lambda_errors`, `lambda_throttles`, `lambda_high_latency`).
+  - Updated [`terraform/environments/dev/main.tf`](file:///home/si3mshady/rolex-price-api/terraform/environments/dev/main.tf) to pass `function_name` and `dashboard_name` parameters to CloudWatch module.
+  - Updated [`docs/sre-slos.md`](file:///home/si3mshady/rolex-price-api/docs/sre-slos.md) defining SLIs (Availability, Latency, Error rate), SLO targets (99.9% availability, <500ms p95 latency), Error Budget burn rate policies, and metric rationale.
+- **Validation Performed**:
+  - `terraform fmt -check -recursive terraform/` passed cleanly.
+- **Lessons Learned**: Codifying CloudWatch dashboards and alarms in Infrastructure as Code guarantees that monitoring and alerting infrastructure is deployed automatically alongside compute resources.
+
 
 

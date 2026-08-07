@@ -40,11 +40,13 @@ module "iam" {
   tags          = local.common_tags
 }
 
-# 3. CloudWatch Log Group for Lambda
+# 3. CloudWatch Log Group, Dashboard & Alarms for Lambda
 module "cloudwatch" {
   source = "../../modules/cloudwatch"
 
   log_group_name    = "/aws/lambda/${local.name_prefix}-app"
+  function_name     = "${local.name_prefix}-app"
+  dashboard_name    = "${local.name_prefix}-dashboard"
   retention_in_days = var.log_retention_days
   tags              = local.common_tags
 }

@@ -79,8 +79,26 @@ As the SaaS platform scales, API Key authentication will transition to identity-
 
 | Domain | Control Mechanism | Tooling / Enforcement |
 | :--- | :--- | :--- |
-| **Static Code Scanning** | Automated Python code vulnerability scan | `bandit` / `flake8` in GitHub Actions |
+| **Static Code Scanning** | Automated Python code vulnerability scan | `flake8` in GitHub Actions |
 | **IaC Security Scanning** | Terraform policy compliance scanning | `checkov` / `tfsec` in CI pipeline |
-| **Dependency Security** | Third-party package vulnerability audit | `pip-audit` / GitHub Dependabot |
+| **Dependency Security** | Third-party package vulnerability audit | `pip-audit` in CI pipeline |
+| **Container Scanning** | FS & image vulnerability scanner | `trivy` in CI pipeline |
 | **Keyless Identity** | Short-lived STS session assumption | OpenID Connect (GitHub OIDC -> AWS IAM) |
 | **Unprivileged Container** | Execution under non-root user | Dockerfile `USER appuser` (UID 10001) |
+
+---
+
+## 📊 DevSecOps Automated Scanning & Severity Policy
+
+Security tools run automatically during the `security-and-compliance` job in [`.github/workflows/ci.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/ci.yml):
+
+1. **`pip-audit`**: Scans Python dependencies in `requirements.txt` against the PyPA advisory database for known CVEs.
+2. **`Checkov`**: Evaluates Terraform modules against CIS AWS benchmarks and cloud security best practices.
+3. **`Trivy`**: Scans the repository filesystem and Docker context for HIGH and CRITICAL vulnerabilities.
+
+### Non-Blocking Build & Remediation Policy
+- Scanners run with **soft-fail mode** (`continue-on-error: true` / `soft_fail: true`).
+- Vulnerability findings are output to GitHub Actions logs as actionable security reports.
+- **LOW / MEDIUM** findings are logged as backlog tech debt.
+- **HIGH / CRITICAL** findings require remediation before production release tag promotion.
+

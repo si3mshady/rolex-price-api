@@ -75,7 +75,7 @@ This document tracks all incremental production-readiness enhancements made to t
 ## Record 005: CloudWatch Dashboards, Metric Alarms & SRE Framework (Phase 3)
 - **Date**: 2026-08-07
 - **Branch**: `feature/observability`
-- **Commit**: Pending merge
+- **Commit**: `6932114`
 - **Problem Solved**: System lacked visual operational dashboards, proactive CloudWatch alarms, and defined SLI/SLO error budget frameworks.
 - **Implementation Decision**:
   - Enhanced [`terraform/modules/cloudwatch`](file:///home/si3mshady/rolex-price-api/terraform/modules/cloudwatch) to provision `aws_cloudwatch_dashboard` (widgets for Invocations, Errors, Throttles, Avg/p95/p99 Duration) and `aws_cloudwatch_metric_alarm` resources (`lambda_errors`, `lambda_throttles`, `lambda_high_latency`).
@@ -84,6 +84,22 @@ This document tracks all incremental production-readiness enhancements made to t
 - **Validation Performed**:
   - `terraform fmt -check -recursive terraform/` passed cleanly.
 - **Lessons Learned**: Codifying CloudWatch dashboards and alarms in Infrastructure as Code guarantees that monitoring and alerting infrastructure is deployed automatically alongside compute resources.
+
+---
+
+## Record 006: DevSecOps Scanners & Pipeline Hardening (Phase 4)
+- **Date**: 2026-08-07
+- **Branch**: `feature/devsecops`
+- **Commit**: Pending merge
+- **Problem Solved**: CI pipeline lacked automated security scanning for Python dependencies, IaC configurations, and container filesystem vulnerabilities.
+- **Implementation Decision**:
+  - Added `security-and-compliance` job to [`.github/workflows/ci.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/ci.yml) incorporating `pip-audit`, `Checkov`, and `Trivy`.
+  - Configured soft-fail policy (`continue-on-error: true` / `soft_fail: true`) to generate security reports without failing builds unnecessarily.
+  - Updated [`docs/security.md`](file:///home/si3mshady/rolex-price-api/docs/security.md) with scanning policies, severity classification rules (HIGH/CRITICAL require remediation before production tag promotion), and non-blocking build principles.
+- **Validation Performed**:
+  - Validated YAML syntax across all workflows.
+- **Lessons Learned**: Integrating non-blocking security scanners into CI provides early visibility into dependency CVEs and IaC security risks without slowing down active developer velocity.
+
 
 
 

@@ -104,6 +104,7 @@ logs/
 temp/
 tmp/
 scratch/
+docs-site/
 
 # ------------------------------------------
 # IDEs & System Files

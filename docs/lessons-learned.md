@@ -1,0 +1,36 @@
+# 🎓 Lessons Learned & Platform Engineering Insights
+
+**Project**: Rolex Price API SaaS  
+**Scope**: Architecture, Infrastructure as Code, Keyless Security, CI/CD Pipeline Engineering  
+
+---
+
+## 💡 Key Architectural & Engineering Takeaways
+
+### 1. Keyless Identity Federation Over Static Keys
+- **Learning**: Storing static AWS access keys in GitHub Secrets poses severe credential exposure risks and requires manual rotation policies.
+- **Solution**: Implementing OpenID Connect (OIDC) identity federation allows GitHub Actions to assume short-lived IAM session roles (`AssumeRoleWithWebIdentity`) dynamically.
+- **Takeaway**: Modern cloud pipelines should mandate OIDC federation across all cloud environments.
+
+### 2. AWS Lambda Web Adapter for Container Portability
+- **Learning**: Wrapping web applications in cloud-provider-specific serverless handlers (e.g. Mangum, AWS Serverless WSGI) creates vendor lock-in and complicates local debugging.
+- **Solution**: Embedding the **AWS Lambda Web Adapter** (`/opt/extensions/lambda-adapter`) allows standard FastAPI applications to run un-modified inside AWS Lambda while retaining standard local execution via Uvicorn.
+- **Takeaway**: Decouple application frameworks from serverless runtime adapters to ensure 100% local container fidelity.
+
+### 3. Resolving Circular Dependencies in IaC (Two-Stage Apply)
+- **Learning**: AWS Lambda functions configured with container package types (`PackageType = "Image"`) fail to provision if the target ECR image URI does not exist prior to function creation.
+- **Solution**: Structured Terraform execution into a **Two-Stage Apply** pattern:
+  - Stage 1 provisions ECR, IAM, S3, and CloudWatch.
+  - Docker builds and pushes the image to ECR.
+  - Stage 2 provisions Lambda and API Gateway using the published image URI.
+- **Takeaway**: Explicitly model infrastructure initialization dependencies when bootstrapping container-based serverless compute.
+
+### 4. Payload-Level Smoke Testing vs. HTTP 200 Pings
+- **Learning**: Basic HTTP 200 status checks pass even when endpoints return empty payloads or fail database initialization.
+- **Solution**: Externalized smoke testing into [`scripts/smoke_test.py`](file:///home/si3mshady/rolex-price-api/scripts/smoke_test.py), which parses response JSON payloads and asserts business fields (`status == "healthy"`, `watches_loaded > 0`, `total_watches > 0`).
+- **Takeaway**: Shift-right post-deployment validation must verify data contracts, not just network availability.
+
+### 5. Decoupling CI Checks from CD Mutating Operations
+- **Learning**: Triggering full infrastructure deployments on every feature branch push creates severe state lock contention in DynamoDB and slows developer feedback loops.
+- **Solution**: Separated PR validation checks ([`.github/workflows/ci.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/ci.yml)) from environment deployment pipelines ([`.github/workflows/deploy-dev.yml`](file:///home/si3mshady/rolex-price-api/.github/workflows/deploy-dev.yml)).
+- **Takeaway**: Isolate non-mutating validation from mutating deployment pipelines to reduce blast radius and pipeline friction.

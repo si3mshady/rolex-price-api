@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== TERRAFORM DEV APPLY (STAGE 2) ==="
-          terraform apply -var="enable_app_services=true" -auto-approve -no-color
+          terraform apply -var="enable_app_services=true" -var="image_uri=${{ env.IMAGE_URI }}" -auto-approve -no-color
 
       - name: Validate Direct Lambda Invocation
         run: |

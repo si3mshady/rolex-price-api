@@ -1,66 +1,67 @@
 # 📐 System Architecture Blueprint
 
-This document details the architecture, system topology, data flow, and API design of the **Rolex Price API SaaS Platform**.
+**Project**: Rolex Price API SaaS  
+**Architecture Pattern**: Cloud-Native Serverless HTTP Container  
+**Hosting Provider**: Amazon Web Services (AWS)  
 
 ---
 
-## 🏛️ Architecture Overview
+## 🏛️ System Topology
 
-The system is constructed as a modern, cloud-native, serverless web application hosted on AWS. It prioritizes low-latency read operations, automated scaling, cost efficiency, and zero server maintenance overhead.
+The **Rolex Price API SaaS** is architected as a lightweight, low-latency, cloud-native serverless web application. It uses a single containerized FastAPI engine packaged with the **AWS Lambda Web Adapter**, fronted by **Amazon API Gateway HTTP API**, and backed by **Amazon S3** static data storage.
 
 ```mermaid
 graph TD
-    Client[Web & Mobile Clients] -->|HTTPS / REST| CloudFront[Amazon CloudFront CDN]
-    CloudFront -->|Static Web Assets| S3_Web[Amazon S3 Frontend Bucket]
-    CloudFront -->|Dynamic API Calls| APIGW[Amazon API Gateway REST API]
+    Client[REST Clients / Web Frontends] -->|HTTPS Requests| APIGW[Amazon API Gateway HTTP API]
     
-    APIGW -->|Lambda Proxy Integration| Lambda[AWS Lambda: FastAPI Engine]
-    
-    subgraph Storage & Security
-        Lambda -->|Read / Write| DynamoDB[(Amazon DynamoDB Single-Table)]
-        DynamoDB -. Encrypted via .- KMS[AWS KMS Key]
-        Lambda -. Secrets Retrieval .- SSM[AWS Parameter Store / Secrets Manager]
+    subgraph Compute Layer
+        APIGW -->|Payload Proxy V2| Lambda[AWS Lambda: FastAPI Container]
+        Adapter[AWS Lambda Web Adapter /opt/extensions/lambda-adapter] -.- Lambda
     end
     
-    subgraph Observability & Reliability
-        Lambda -->|Structured Logs| CloudWatch[Amazon CloudWatch Logs]
-        Lambda -->|Traces| XRay[AWS X-Ray]
-        CloudWatch -->|Alarms| SNS[Amazon SNS Alerting Topic]
+    subgraph Data & Storage
+        Lambda -->|Read Catalog Asset| S3[Amazon S3 Bucket: rolex-price-api-dev-data]
+    end
+    
+    subgraph Security & Access
+        IAM[IAM Execution Role: rolex-price-api-dev-lambda-role] -. Least Privilege Permissions .- Lambda
+        OIDC[GitHub Actions OIDC Provider] -. Keyless STS Assumption .- IAM
+    end
+    
+    subgraph Observability
+        Lambda -->|Structured Logs| CloudWatch[Amazon CloudWatch Log Group: /aws/lambda/...]
     end
 ```
 
 ---
 
-## 🔑 Core Design Principles
+## 🔑 Key Architectural Components
 
-1. **Serverless-First**: Micro-compute powered by AWS Lambda and Amazon API Gateway to eliminate idle server costs and provide auto-scaling up to thousands of requests per second.
-2. **Single-Table DynamoDB Design**: Optimized data modeling supporting access patterns for time-series valuation data, model references, and historical market metrics.
-3. **Stateless API Layer**: Python FastAPI framework packaged as a serverless bundle using Mangum, enabling easy local development and seamless Lambda execution.
-4. **Decoupled Frontend**: React/Vite Single Page Application (SPA) static build deployed to Amazon S3 and globally accelerated via Amazon CloudFront.
+### 1. API Ingress (Amazon API Gateway HTTP API)
+- **Type**: AWS API Gateway v2 HTTP API (`$default` stage).
+- **Latency & Cost**: Offers up to 70% lower latency and 70% cost reduction compared to legacy REST APIs.
+- **Routing**: Full proxy integration (`ANY /{proxy+}`) routing all HTTP traffic directly to the underlying Lambda container.
 
----
+### 2. Serverless Compute (AWS Lambda Container + Web Adapter)
+- **Base Image**: `python:3.12-slim` multi-stage build.
+- **Adapter**: AWS Lambda Web Adapter (`v0.8.4`) embedded at `/opt/extensions/lambda-adapter`. Translates incoming Lambda events into HTTP calls to Uvicorn running on port 8000.
+- **Configuration**: 512 MB memory, 30-second timeout, running under unprivileged user `appuser` (UID 10001).
 
-## 📊 Data Model & Access Patterns
+### 3. Data Storage (Amazon S3)
+- **Bucket**: `rolex-price-api-dev-data`.
+- **Format**: Static JSON time-series and market valuation catalog (`rolex_scraped_dataset.json`). Loaded in-memory on application startup via `RolexService`.
 
-### DynamoDB Primary Table (`rolex_price_data`)
-
-- **Partition Key (`PK`)**: Entity Identifier (e.g., `WATCH#Submariner-126610LN`, `SERIES#Daytona`)
-- **Sort Key (`SK`)**: Range / Version / Timestamp (e.g., `METADATA`, `VALUATION#2026-08-01`)
-
-### Primary Access Patterns
-| Pattern ID | Access Pattern Description | Key Condition | Target Latency |
-| :--- | :--- | :--- | :--- |
-| **AP-01** | Get Watch Reference Details | `PK = WATCH#<model_id>` AND `SK = METADATA` | < 15ms |
-| **AP-02** | Get Price History Time-Series | `PK = WATCH#<model_id>` AND `SK BEGINS_WITH(VALUATION#)` | < 25ms |
-| **AP-03** | List All Models in Collection | `GSI1PK = COLLECTION#<name>` | < 35ms |
-| **AP-04** | Get Market Index Valuation | `PK = INDEX#ROLEX_COMPOSITE` AND `SK = LATEST` | < 10ms |
+### 4. Security & Identity Federation (GitHub OIDC)
+- **Authentication**: Keyless OpenID Connect (OIDC) identity federation (`sts:AssumeRoleWithWebIdentity`). Zero long-lived AWS access keys stored in GitHub Secrets.
+- **IAM Policy**: Execution role limited strictly to CloudWatch log stream creation and read access to the designated S3 data bucket.
 
 ---
 
-## 🔌 API Endpoint Specification (Planned Interface)
+## 📊 Data & Service Flow Sequence
 
-- `GET /health` - Liveness & Readiness probe (returns API status, DB connectivity, uptime)
-- `GET /v1/watches` - Paginated list of indexed Rolex models with latest price estimates
-- `GET /v1/watches/{model_id}` - Detailed metadata & specs for a specific timepiece
-- `GET /v1/watches/{model_id}/history` - Historical price series data with customizable date ranges
-- `GET /v1/analytics/market-index` - Macro Rolex secondary market index & trend calculations
+1. **Client Request**: HTTPS REST request received by API Gateway.
+2. **Proxy Payload**: API Gateway constructs HTTP payload format v2 and invokes AWS Lambda.
+3. **Web Adapter Translation**: The extension interceptor receives the event and sends an internal HTTP request to FastAPI running on `localhost:8000`.
+4. **Service Execution**: FastAPI router evaluates query filters (`/watches`, `/collections`, `/search`, `/statistics`) against `RolexService` memory cache.
+5. **Structured Response**: HTTP 200/404/422 JSON payload returned to API Gateway and client.
+6. **Logging**: Execution metrics and logs streamed to CloudWatch Log Group `/aws/lambda/rolex-price-api-dev-app`.
